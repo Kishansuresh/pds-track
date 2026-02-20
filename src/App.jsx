@@ -7,7 +7,8 @@ import {
 import { 
   LayoutDashboard, Warehouse, Truck, Store, BarChart2, MessageSquare, 
   AlertTriangle, Users, LogOut, Search, Bell, Package, ArrowUp, QrCode, Plus, 
-  ShoppingCart, CheckCircle, X, User, ArrowDownToLine, MapPin, Navigation, CalendarCheck, Clock, Bookmark
+  ShoppingCart, CheckCircle, X, User, ArrowDownToLine, MapPin, Navigation, 
+  CalendarCheck, Clock, Bookmark, Shield, ArrowRight, CheckCircle2, BarChart3
 } from "lucide-react";
 
 // --- SUPABASE SETUP ---
@@ -122,12 +123,10 @@ const GpsTrackingModal = ({ isOpen, onClose, shipment, onArrival }) => {
     if (isOpen) {
       setIsArrived(false);
       
-      // Truck finishes driving exactly at 8 seconds
       driveTimer = setTimeout(() => {
         setIsArrived(true);
       }, 8000);
 
-      // Modal auto-closes and triggers DB arrival hook at 9.5 seconds
       closeTimer = setTimeout(() => {
         if (onArrival && shipment) onArrival(shipment);
         onClose();
@@ -157,7 +156,7 @@ const GpsTrackingModal = ({ isOpen, onClose, shipment, onArrival }) => {
               35%  { transform: translate(150px, 80px); }
               60%  { transform: translate(350px, 80px); }
               80%  { transform: translate(350px, 220px); }
-              100% { transform: translate(520px, 220px); } /* Stops exactly at destination */
+              100% { transform: translate(520px, 220px); }
             }
           `}
         </style>
@@ -236,13 +235,21 @@ const Sidebar = ({ role, setRole }) => {
           <><NavItem to="/" icon={User} label="My Quota & Alerts" /><NavItem to="/complaints" icon={MessageSquare} label="My Complaints" /></>
         )}
       </nav>
-      <div className="p-4 border-t border-slate-800 relative">
-        <LogOut size={16} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-slate-800 text-slate-300 border-none rounded-xl py-3 pl-10 pr-8 text-sm focus:ring-1 focus:ring-teal-500 cursor-pointer outline-none hover:bg-slate-700 transition-colors">
-          <option value="admin">Admin View</option>
-          <option value="warehouse">Warehouse View</option>
-          <option value="dealer">Dealer View</option>
-          <option value="citizen">Citizen View</option>
+      
+      {/* Updated Bottom Nav to include Logout to Landing Page */}
+      <div className="p-4 border-t border-slate-800 flex items-center gap-2">
+        <button 
+          onClick={() => setRole(null)} 
+          className="p-3 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-colors cursor-pointer"
+          title="Logout to Home"
+        >
+          <LogOut size={16} />
+        </button>
+        <select value={role} onChange={(e) => setRole(e.target.value)} className="flex-1 bg-slate-800 text-slate-300 border-none rounded-xl py-3 px-3 text-sm focus:ring-1 focus:ring-teal-500 cursor-pointer outline-none hover:bg-slate-700 transition-colors">
+          <option value="admin">Admin</option>
+          <option value="warehouse">Warehouse</option>
+          <option value="dealer">Dealer</option>
+          <option value="citizen">Citizen</option>
         </select>
       </div>
     </aside>
@@ -326,14 +333,12 @@ const AdminDashboard = () => {
   useEffect(() => { fetchData(); }, [activeTab]);
 
   const handleResolveComplaint = async (id) => {
-    // Optimistic Update
     setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: 'resolved' } : c));
     await supabase.from('reports').update({ status: 'resolved' }).eq('id', id);
     fetchData(); 
   };
 
   const handleAutoDeliver = async (shp) => {
-    // Optimistic Update: Instantly change status to Delivered
     setShipments(prev => prev.map(s => s.id === shp.id ? { ...s, status: 'delivered' } : s));
     await supabase.from('shipments').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', shp.id);
     fetchData();
@@ -444,7 +449,6 @@ const WarehouseDashboard = () => {
     if (riceRow && riceRow.total_quantity_kg < riceToShip) { alert("Error: Insufficient Rice stock in Warehouse."); return; }
     if (wheatRow && wheatRow.total_quantity_kg < wheatToShip) { alert("Error: Insufficient Wheat stock in Warehouse."); return; }
 
-    // Optimistic Update: Deduct instantly from UI
     setStock(prev => prev.map(s => {
       if (s.commodity_type?.toLowerCase() === 'rice') return { ...s, total_quantity_kg: Math.max(0, s.total_quantity_kg - riceToShip) };
       if (s.commodity_type?.toLowerCase() === 'wheat') return { ...s, total_quantity_kg: Math.max(0, s.total_quantity_kg - wheatToShip) };
@@ -465,7 +469,6 @@ const WarehouseDashboard = () => {
   };
 
   const handleAutoDeliver = async (shp) => {
-    // Optimistic UI update: Instantly convert badge to Delivered
     setShipments(prev => prev.map(s => s.id === shp.id ? { ...s, status: 'delivered' } : s));
     await supabase.from('shipments').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', shp.id);
     fetchData();
@@ -587,12 +590,10 @@ const DealerDashboard = () => {
     if (riceSold > shopData.rice || wheatSold > shopData.wheat) { alert("Error: Insufficient physical stock for this sale."); return; }
     if (!shopData.id) { alert("Error: Shop database record not found."); return; }
 
-    // Instant UI update
     setShopData(prev => ({ ...prev, rice: Math.max(0, prev.rice - riceSold), wheat: Math.max(0, prev.wheat - wheatSold) }));
     setIsModalOpen(false);
     setSaleData({ name: '', amount: '', rice: '', wheat: '' });
 
-    // Background Sync
     await supabase.from('transactions').insert([
       { amount: Number(saleData.amount), items: { "Type": "Citizen Sale", "Rice": `${riceSold}kg`, "Wheat": `${wheatSold}kg`, "Customer": saleData.name }, payment_status: 'success' }
     ]);
@@ -601,7 +602,6 @@ const DealerDashboard = () => {
     fetchDealerData();
   };
 
-  // OPTIMISTIC UPDATE: INSTANT STATUS & STOCK CHANGE
   const handleAcceptShipment = async (shp) => {
     let addedRice = 0, addedWheat = 0;
     if (shp.items) {
@@ -618,13 +618,11 @@ const DealerDashboard = () => {
 
     if (!shopData.id) { alert("Error: Shop database record not found."); return; }
 
-    // Instant UI Update: Remove from incoming view & Boost Inventory
     setIncomingShipments(prev => prev.map(s => s.id === shp.id ? { ...s, status: 'delivered' } : s));
     setShopData(prev => ({ ...prev, rice: prev.rice + addedRice, wheat: prev.wheat + addedWheat }));
     
     const cost = (addedRice * 30) + (addedWheat * 20);
 
-    // Background Sync
     await supabase.from('shipments').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', shp.id);
     await supabase.from('ration_shops').update({ current_stock_rice: shopData.rice + addedRice, current_stock_wheat: shopData.wheat + addedWheat }).eq('id', shopData.id);
     await supabase.from('transactions').insert([
@@ -641,11 +639,9 @@ const DealerDashboard = () => {
     if (shopData.rice < riceReq || shopData.wheat < wheatReq) { alert("Error: Not enough physical stock to reserve."); return; }
     if (!shopData.id) return;
 
-    // Instant UI Update
     setReservations(prev => prev.filter(r => r.id !== res.id));
     setShopData(prev => ({ ...prev, rice: Math.max(0, prev.rice - riceReq), wheat: Math.max(0, prev.wheat - wheatReq) }));
     
-    // Background Sync
     await supabase.from('ration_shops').update({ current_stock_rice: Math.max(0, shopData.rice - riceReq), current_stock_wheat: Math.max(0, shopData.wheat - wheatReq) }).eq('id', shopData.id);
     await supabase.from('transactions').update({ payment_status: 'reserved' }).eq('id', res.id);
     
@@ -994,9 +990,123 @@ const CitizenDashboard = () => {
   );
 };
 
+// --- NEW LANDING PAGE COMPONENT ---
+const LandingPage = ({ onRoleSelect }) => {
+  const roles = [
+    { role: "admin", title: "Government Admin", description: "State-level oversight of the entire PDS supply chain", icon: Shield, color: "text-teal-600", bg: "bg-teal-50 border-teal-200", features: ["Analytics & predictions", "Warehouse monitoring", "Complaint management", "Shipment tracking"] },
+    { role: "warehouse", title: "Warehouse Manager", description: "Manage stock levels and dispatch shipments", icon: Warehouse, color: "text-amber-600", bg: "bg-amber-50 border-amber-200", features: ["Inventory management", "Create & dispatch shipments", "QR scan verification", "Low-stock alerts"] },
+    { role: "dealer", title: "Ration Shop Dealer", description: "Manage your shop inventory and process citizen sales", icon: Package, color: "text-blue-600", bg: "bg-blue-50 border-blue-200", features: ["Shop inventory", "Incoming shipments", "Process sales", "Customer history"] },
+    { role: "citizen", title: "Citizen Portal", description: "Check stock, pre-order rations and raise complaints", icon: Users, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", features: ["Nearby shops & stock", "Pre-order tokens", "Order history", "Raise complaints"] },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <div className="relative overflow-hidden bg-slate-900">
+        <img
+          src="/assets/hero-supply.jpg"
+          alt="PDS supply chain"
+          className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-luminosity"
+        />
+        <div className="relative z-10 max-w-5xl mx-auto px-6 py-16 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 mb-6">
+            <div className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
+            <span className="text-xs font-medium text-white/80">Government of India · PDS Transparency Initiative</span>
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-4">
+            Public Distribution System<br />
+            <span className="text-teal-400">Supply Chain Platform</span>
+          </h1>
+          <p className="text-base md:text-lg text-white/70 max-w-2xl mx-auto mb-8">
+            Real-time visibility from warehouse to citizen. Track stock, predict shortages, and ensure every family gets their fair share.
+          </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-white/60">
+            {[
+              { icon: Warehouse, label: "24 Warehouses" },
+              { icon: Package, label: "1,847 Ration Shops" },
+              { icon: Users, label: "4.2M Citizens" },
+              { icon: Truck, label: "Real-time Tracking" },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2">
+                <Icon size={16} className="text-teal-400" />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <div className="text-center mb-8">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800">Select Your Role to Continue</h2>
+          <p className="text-sm text-slate-500 mt-2">Each role provides a tailored dashboard with relevant tools and data</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {roles.map((r) => {
+            const Icon = r.icon;
+            return (
+              <button
+                key={r.role}
+                onClick={() => onRoleSelect(r.role)}
+                className={`group relative rounded-xl border-2 p-5 text-left transition-all duration-200 hover:shadow-xl hover:-translate-y-1 bg-white ${r.bg} cursor-pointer`}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg mb-4 ${r.bg}`}>
+                  <Icon size={22} className={r.color} />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 mb-1">{r.title}</h3>
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed h-8">{r.description}</p>
+                <ul className="space-y-1.5 mb-4 border-t border-slate-100 pt-4">
+                  {r.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                      <CheckCircle2 size={14} className={r.color} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className={`flex items-center gap-1.5 text-xs font-bold ${r.color} group-hover:gap-2.5 transition-all mt-4`}>
+                  Enter Dashboard <ArrowRight size={14} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-12 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-800 mb-6 text-center uppercase tracking-wider">Platform Capabilities</h3>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {[
+              { icon: BarChart3, title: "AI Demand Prediction", desc: "Forecast stockouts before they happen" },
+              { icon: Truck, title: "Live Shipment Tracking", desc: "GPS-enabled end-to-end visibility" },
+              { icon: MapPin, title: "Geo-Shop Locator", desc: "Citizens find nearest ration shop" },
+              { icon: CheckCircle2, title: "Complaint Resolution", desc: "Transparent grievance management" },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="text-center p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 mx-auto mb-3">
+                  <Icon size={18} className="text-teal-600" />
+                </div>
+                <p className="text-xs font-bold text-slate-800">{title}</p>
+                <p className="text-xs text-slate-500 mt-1">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-slate-400 mt-10 font-medium">
+          PDS Track v1.0 · Built under <span className="font-bold text-slate-600">Connected Systems for Public Infrastructure</span> · Hackathon 2026
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 export default function App() {
-  const [role, setRole] = useState("dealer"); 
+  const [role, setRole] = useState(null); 
+  
+  if (!role) {
+    return <LandingPage onRoleSelect={setRole} />;
+  }
+
   return (
     <Router>
       <div className="flex min-h-screen bg-[#f8fafc] font-sans">
